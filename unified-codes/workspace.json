@@ -11,11 +11,12 @@
         "build": {
           "builder": "@nrwl/node:build",
           "options": {
+            "showCircularDependencies": false,
             "outputPath": "dist/apps/data-service",
             "main": "apps/data-service/src/app/main.ts",
             "tsConfig": "apps/data-service/tsconfig.app.json",
             "assets": ["apps/data-service/src/assets"],
-            "externalDependencies": ["fastify"]
+            "generatePackageJson": true
           },
           "configurations": {
             "production": {
@@ -67,6 +68,7 @@
         "build": {
           "builder": "@nrwl/web:build",
           "options": {
+            "showCircularDependencies": false,
             "outputPath": "dist/apps/web",
             "index": "apps/web/src/index.html",
             "main": "apps/web/src/index.tsx",
