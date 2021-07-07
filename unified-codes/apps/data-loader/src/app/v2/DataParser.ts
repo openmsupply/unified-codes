@@ -99,12 +99,6 @@ export class DataParser {
     this.cycles = [];
   }
 
-  private generateCode(numCharacters = 8) {
-    return Math.round(Math.random() * Math.pow(16, numCharacters))
-      .toString(16)
-      .padStart(numCharacters, '0');
-  }
-
   public async parseData(): Promise<ICSVData> {
     if (this.isParsed) return this.data;
 
@@ -162,441 +156,87 @@ export class DataParser {
 
       // Parse entity graph.
       this.data.forEach((row) => {
-        const {
-          product,
-          //product_synonym,
-          combination,
-          route,
-          dose_form,
-          dose_qualification,
-          strength,
-          unit_of_presentation,
-          immediate_packaging,
-          pack_size,
-          //outer_packaging,
-          //manufacturer,
-          //brand,
-          uc1,
-          uc2,
-          uc3,
-          uc4,
-          uc5,
-          uc6,
-          uc7,
-          uc8,
-          uc9,
-          //uc10,
-          //uc11,
-          //uc12,
-          rxnav,
-          who_eml_product,
-          who_eml_item,
-          nzulm,
-          nzulm_item,
-          unspsc,
-        } = row;
+        const productDefinition = [
+          { name: row.product, code: row.uc2, type: EEntityType.Product },
+          { name: row.route, code: row.uc3, type: EEntityType.Route },
+          { name: row.dose_form, code: row.uc4, type: EEntityType.Form },
+          { name: row.dose_qualification, code: row.uc5, type: EEntityType.FormQualifier },
+          { name: row.strength, code: row.uc6, type: EEntityType.DoseStrength },
+          { name: row.unit_of_presentation, code: row.uc7, type: EEntityType.Unit },
+          { name: row.immediate_packaging, code: row.uc8, type: EEntityType.PackImmediate },
+          { name: row.pack_size, code: row.uc9, type: EEntityType.PackSize },
+          // { name: row.outer_packaging, code: row.uc10, type: EEntityType.PackOuter },
+          // { name: row.manufacturer, code: row.uc11, type: EEntityType.Manufacturer },
+          // { name: row.brand, code: row.uc12, type: EEntityType.Brand },
+        ];
 
-        const productProperties: IPropertyNode[] = [];
-        const itemProperties: IPropertyNode[] = [];
+        const { uc1, combination } = row;
 
-        productProperties.push({
-          code: this.generateCode(),
-          type: EPropertyType.RxNav,
-          value: rxnav,
-        });
-        productProperties.push({
-          code: this.generateCode(),
-          type: EPropertyType.WHOEML,
-          value: who_eml_product,
-        });
+        const productProperties: IPropertyNode[] = [
+          { type: EPropertyType.RxNav, value: row.rxnav },
+          { type: EPropertyType.WHOEML, value: row.who_eml_product },
+          { type: EPropertyType.NZULM, value: row.nzulm },
+          { type: EPropertyType.UNSPSC, value: row.unspsc }
+        ];
 
-        itemProperties.push({
-          code: this.generateCode(),
-          type: EPropertyType.WHOEML,
-          value: who_eml_item,
-        });
-        productProperties.push({
-          code: this.generateCode(),
-          type: EPropertyType.NZULM,
-          value: nzulm,
-        });
-        itemProperties.push({
-          code: this.generateCode(),
-          type: EPropertyType.NZULM,
-          value: nzulm_item,
-        });
-        productProperties.push({
-          code: this.generateCode(),
-          type: EPropertyType.UNSPSC,
-          value: unspsc,
-        });
+        const itemProperties: IPropertyNode[] = [
+          { type: EPropertyType.WHOEML, value: row.who_eml_item },
+          { type: EPropertyType.NZULM, value: row.nzulm_item },
+        ];
 
-        // If row includes pack size code...
-        if (uc9) {
-          const code = uc9;
-          const name = pack_size;
-          const type = EEntityType.PackSize;
-
-          // and node does not exist...
-          if (!(uc9 in this.graph)) {
-            // create pack size node.
-            const node = {
-              code,
-              name,
-              type,
-              children: [],
-              properties: [],
-            };
-
-            this.graph[uc9] = node;
-
-            console.log(`INFO: Created node of type ${type}: ${JSON.stringify(node)}`);
-          }
-        }
-
-        // If row includes immediate packaging code...
-        if (uc8) {
-          const code = uc8;
-          const name = immediate_packaging;
-          const type = EEntityType.PackImmediate;
-
-          // and node does not exist...
-          if (!(uc8 in this.graph)) {
-            // create unit node.
-            const node = {
-              code,
-              name,
-              type,
-              children: [],
-              properties: [],
-            };
-
-            this.graph[uc8] = node;
-
-            console.log(`INFO: Created node of type ${type}: ${JSON.stringify(node)}`);
-          }
-        }
-
-        // If row includes unit of presentation code...
-        if (uc7) {
-          const code = uc7;
-          const name = unit_of_presentation;
-          const type = EEntityType.Unit;
-
-          // and node does not exist...
-          if (!(uc7 in this.graph)) {
-            // create unit node.
-            const node = {
-              code,
-              name,
-              type,
-              children: [],
-              properties: [],
-            };
-
-            this.graph[uc7] = node;
-
-            console.log(`INFO: Created node of type ${type}: ${JSON.stringify(node)}`);
-          }
-        }
-
-        // If row include strength code...
-        if (uc6) {
-          const code = uc6;
-          const name = strength;
-          const type = EEntityType.DoseStrength;
-
-          // and node does not exist...
-          if (!(uc6 in this.graph)) {
-            // create strength node.
-            const node = {
-              code,
-              name,
-              type,
-              children: [],
-              properties: [],
-            };
-
-            this.graph[uc6] = node;
-
-            console.log(`INFO: Created node of type ${type}: ${JSON.stringify(node)}`);
-          }
-          // and node exists...
-          else {
+        productDefinition.forEach(item => {
+          if (!item.code) return;
+          
+          if (item.code in this.graph) {
             // check for conflicts.
-            if (this.graph[uc6].type != type) {
-              duplicates.push(uc6);
+            if (item.type && this.graph[item.code].type != item.type) {
+              duplicates.push(item.code);
             }
           }
-        }
-
-        // If row includes dose qualification code...
-        if (uc5) {
-          const code = uc5;
-          const name = dose_qualification;
-          const type = EEntityType.FormQualifier;
-
-          // and node does not exist...
-          if (!(uc5 in this.graph)) {
-            // create dose qualifier node.
-            const node = {
-              code,
-              name,
-              type,
-              children: [],
-              properties: [],
-            };
-
-            this.graph[uc5] = node;
-
-            console.log(`INFO: Created dose qualifier node: ${JSON.stringify(node)}`);
-          }
-          // and node exists...
           else {
-            // check for conflicts.
-            if (this.graph[uc5].type != type) {
-              duplicates.push(uc5);
-            }
-          }
-        }
-
-        // If row includes dose form code...
-        if (uc4) {
-          const code = uc4;
-          const name = dose_form;
-          const type = EEntityType.Form;
-
-          // and node does not exist...
-          if (!(uc4 in this.graph)) {
-            // create dose form node.
-            const node = {
-              code,
-              name,
-              type,
-              children: [],
-              properties: [],
-            };
-
-            this.graph[uc4] = node;
-
-            console.log(`INFO: Created dose form node: ${JSON.stringify(node)}`);
-          }
-          // and node exists...
-          else {
-            // check for conflicts.
-            if (this.graph[uc4].type != type) {
-              duplicates.push(uc4);
-            }
-          }
-        }
-
-        // If row includes route code...
-        if (uc3) {
-          const code = uc3;
-          const name = route;
-          const type = EEntityType.Route;
-
-          // and node does not exist...
-          if (!(uc3 in this.graph)) {
-            // create route node.
-            const node = {
-              code,
-              name,
-              type,
-              children: [],
-              properties: [],
-            };
-
-            this.graph[uc3] = node;
-
-            console.log(`INFO: Created route node: ${JSON.stringify(node)}`);
-          }
-          // and node exists...
-          else {
-            // check for conflicts.
-            if (this.graph[uc3].type != type) {
-              duplicates.push(uc3);
-            }
-          }
-        }
-
-        // If row includes product code.
-        if (uc2) {
-          const code = uc2;
-          const name = product;
-          const type = EEntityType.Product;
-
-          // and node does not exist...
-          if (!(uc2 in this.graph)) {
-            // create product node.
-            const node = {
-              code,
-              name,
-              type,
+            const node = { 
+              code: item.code,
+              name: item.name,
+              type: item.type,
               combines: [],
               children: [],
-              properties: [],
-            };
-
-            this.graph[uc2] = node;
-
-            console.log(`INFO: Created product node: ${JSON.stringify(node)}`);
-          }
-          // and node exists...
-          else {
-            // check for conflicts.
-            if (this.graph[uc2].type != type) {
-              duplicates.push(uc2);
+              properties: [], 
             }
+            this.graph[item.code] = node;
+
+            console.log(`INFO: Created ${item.type} node: ${JSON.stringify(node)}`);
+          }
+        });
+
+        const productCode = productDefinition.find(item => item.type === EEntityType.Product)?.code;
+        // If category code exists, and product code exists
+        if (uc1 && productCode) {
+
+          // link category to product.
+          if (!this.graph[uc1].children.map((child) => child.code).includes(productCode)) {
+            this.graph[uc1].children.push({ code: productCode });
+            console.log(`INFO: Linked category with code ${uc1} to product with code ${productCode}`);
           }
         }
 
-        // If pack immediate code exists...
-        if (uc8) {
-          // and pack size code exists...
-          if (uc9) {
-            // link pack immediate to pack size.
-            if (!this.graph[uc8].children.map((child) => child.code).includes(uc9)) {
-              this.graph[uc8].children.push({ code: uc9 });
+        // Iterate through and assign children to parents 
+        // This starts at the top of the graph and for each node, finds the closest lower level node that has a code and name
+        // This avoids having to manually define each combination of 'levels' that are able to be connected 
+        let parentIndex = 0;
+        let childIndex = 1;
+        while (childIndex < productDefinition.length) {
+          const parent = productDefinition[parentIndex];
+          const child = productDefinition[childIndex];
+          if (child.name && child.code) {
+            if (!this.graph[parent.code].children.map((existingGraphChild) => existingGraphChild.code).includes(child.code)) {
+              this.graph[parent.code].children.push(child);
               console.log(
-                `INFO: Linked pack immediate with code ${uc8} to pack size with code ${uc9}`
+                `INFO: Linked ${parent.type} with code ${parent.code} to ${child.type} with code ${child.code}`
               );
             }
+            parentIndex = childIndex;
           }
-        }
-
-        // If unit code exists...
-        if (uc7) {
-          // and pack immediate code exists...
-          if (uc8) {
-            // link unit to pack immediate.
-            if (!this.graph[uc7].children.map((child) => child.code).includes(uc8)) {
-              this.graph[uc7].children.push({ code: uc8 });
-              console.log(`INFO: Linked unit with code ${uc7} to pack immediate with code ${uc8}`);
-            }
-          }
-        }
-
-        // If dose strength code exists...
-        if (uc6) {
-          // and unit code exists...
-          if (uc7) {
-            // link dose strength to unit.
-            if (!this.graph[uc6].children.map((child) => child.code).includes(uc7)) {
-              this.graph[uc6].children.push({ code: uc7 });
-              console.log(`INFO: Linked dose strength with code ${uc6} to unit with code ${uc7}`);
-            }
-          }
-        }
-
-        // If dose qualifier code exists...
-        if (uc5) {
-          // and strength code exists...
-          if (uc6) {
-            // link dose qualification to strength.
-            if (!this.graph[uc5].children.map((child) => child.code).includes(uc6)) {
-              this.graph[uc5].children.push({ code: uc6 });
-              console.log(
-                `INFO: Linked dose qualifier with code ${uc5} to dose strength with code ${uc6}`
-              );
-            }
-          }
-          // if strength doesn't exist but unit of presentation does
-          else if (uc7) {
-            // link dose qualification to unit of presentation
-            if (!this.graph[uc5].children.map((child) => child.code).includes(uc7)) {
-              this.graph[uc5].children.push({ code: uc7 });
-              console.log(
-                `INFO: Linked dose qualifier with code ${uc5} to unit of presentation with code ${uc7}`
-              );
-            }
-          }
-        }
-
-        // If dose form code exists...
-        if (uc4) {
-          // and dose qualifier code exists...
-          if (uc5) {
-            // link dose form to dose qualifier.
-            if (!this.graph[uc4].children.map((child) => child.code).includes(uc5)) {
-              this.graph[uc4].children.push({ code: uc5 });
-              console.log(
-                `INFO: Linked dose form with code ${uc4} to dose qualifier with code ${uc5}`
-              );
-            }
-          }
-          // and dose qualifier code does not exist...
-          else {
-            // and strength code exists...
-            if (uc6) {
-              // link dose form to strength.
-              if (!this.graph[uc4].children.map((child) => child.code).includes(uc6)) {
-                this.graph[uc4].children.push({ code: uc6 });
-                console.log(`INFO: Linked dose form with code ${uc4} to strength with code ${uc6}`);
-              }
-            }
-            else if (uc7) {
-              // link dose form to unit of presentation.
-              if (!this.graph[uc4].children.map((child) => child.code).includes(uc7)) {
-                this.graph[uc4].children.push({ code: uc7 });
-                console.log(`INFO: Linked dose form with code ${uc4} to unit of presentation with code ${uc7}`);
-              }
-            }
-          }
-        }
-
-        // If route code exists...
-        if (uc3) {
-          // and dose form exists...
-          if (uc4) {
-            // link route to dose form.
-            if (!this.graph[uc3].children.map((child) => child.code).includes(uc4)) {
-              this.graph[uc3].children.push({ code: uc4 });
-              console.log(`INFO: Linked route with code ${uc3} to dose form with code ${uc4}`);
-            }
-          }
-        }
-
-        // If product code exists...
-        if (uc2) {
-          // and route code exists...
-          if (uc3) {
-            // link product to route.
-            if (!this.graph[uc2].children.map((child) => child.code).includes(uc3)) {
-              this.graph[uc2].children.push({ code: uc3 });
-              console.log(`INFO: Linked product with code ${uc2} to route with code ${uc3}`);
-            }
-          }
-          // and route code does not exists...
-          else {
-            // and strength code exists...
-            if (uc6) {
-              // link product to strength.
-              if (!this.graph[uc2].children.map((child) => child.code).includes(uc6)) {
-                this.graph[uc2].children.push({ code: uc6 });
-                console.log(`INFO: Linked product with code ${uc2} to strength with code ${uc6}`);
-              }
-            }
-            else if (uc7) {
-              // link product to unit of presentation.
-              if (!this.graph[uc2].children.map((child) => child.code).includes(uc7)) {
-                this.graph[uc2].children.push({ code: uc7 });
-                console.log(`INFO: Linked product with code ${uc2} to unit of presentation with code ${uc7}`);
-              }
-            }
-          }
-        }
-
-        // If category code exists...
-        if (uc1) {
-          // and product code exists...
-          if (uc2) {
-            // link category to product.
-            if (!this.graph[uc1].children.map((child) => child.code).includes(uc2)) {
-              this.graph[uc1].children.push({ code: uc2 });
-              console.log(`INFO: Linked category with code ${uc1} to product with code ${uc2}`);
-            }
-          }
+          childIndex++;
         }
 
         // Parse product combinations.
@@ -619,30 +259,33 @@ export class DataParser {
         // });
 
         // Process external properties at product (UC2) level
-        if (uc2) {
+        if (productCode) {
           productProperties.forEach((property) => {
             // temporary restriction for uc7 - these are not currently imported
             if (property.value) {
               console.log(
-                `INFO: Property of type ${property.type} with value ${property.value} added for ${uc2}`
+                `INFO: Property of type ${property.type} with value ${property.value} added for ${productCode}`
               );
-              if (!this.graph[uc2].properties.some((p) => p.type === property.type)) {
-                this.graph[uc2].properties.push(property);
+              if (!this.graph[productCode].properties.some((p) => p.type === property.type)) {
+                this.graph[productCode].properties.push(property);
               }
             }
           });
         }
 
+        const strengthCode = productDefinition.find(item => item.type === EEntityType.DoseStrength)?.code;  // UC6
+        const unitCode = productDefinition.find(item => item.type === EEntityType.Unit)?.code;      // UC7
+
         // Process external properties at item (UC6) level
-        if (!uc7 && uc6) {
+        if (!unitCode && strengthCode) {
           itemProperties.forEach((property) => {
             // temporary restriction for uc7 - these are not currently imported
             if (property.value) {
               console.log(
-                `INFO: Property of type ${property.type} with value ${property.value} added for ${uc6}`
+                `INFO: Property of type ${property.type} with value ${property.value} added for ${strengthCode}`
               );
-              if (!this.graph[uc6].properties.some((p) => p.type === property.type)) {
-                this.graph[uc6].properties.push(property);
+              if (!this.graph[strengthCode].properties.some((p) => p.type === property.type)) {
+                this.graph[strengthCode].properties.push(property);
               }
             }
           });
@@ -651,7 +294,7 @@ export class DataParser {
 
       // Expand graph edges.
       Object.keys(this.graph).forEach((code) => {
-        this.graph[code].combines = this.graph[code].combines?.map((uc2) => this.graph[uc2.code]);
+        //this.graph[code].combines = this.graph[code].combines?.map((uc2) => this.graph[uc2.code]);
         this.graph[code].children = this.graph[code].children?.map((uc) => this.graph[uc.code]);
         console.log(`INFO: Expanded edges for node with code ${code}`);
       });
